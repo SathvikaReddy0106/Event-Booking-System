@@ -1,6 +1,6 @@
-# Design Decisions
+# Architecture & Design Decisions
 
-This document explains the key architectural and implementation decisions made while developing the Event Booking System.
+This document summarizes the key architectural and implementation decisions made during the development of the Event Booking System.
 
 ---
 
@@ -10,11 +10,11 @@ This document explains the key architectural and implementation decisions made w
 
 A user may hold and confirm multiple seats for the same showtime, provided each seat is available.
 
-## Rationale
+## Reasoning
 
-Allowing multiple seat reservations reflects real-world booking scenarios where a user reserves seats for family or friends. Reservation conflicts are prevented at the seat level, allowing independent reservations for different seats without affecting consistency.
+Allowing multiple seat reservations reflects common booking scenarios where users reserve seats for family or friends. Since reservation conflicts are handled at the seat level, multiple reservations by the same user do not affect system consistency.
 
-## Other Possible Approaches
+## Alternatives Considered
 
 - Restrict one active reservation per user per showtime.
 - Limit the maximum number of seats per booking.
@@ -29,13 +29,13 @@ These rules can be introduced later as business requirements without changing th
 
 Seat holds are allowed regardless of how close the showtime is.
 
-## Rationale
+## Reasoning
 
-The reservation system enforces a fixed two-minute hold duration and treats the showtime independently from the hold lifecycle. This keeps the booking flow predictable while avoiding additional scheduling rules.
+The reservation system enforces a fixed two-minute hold duration while keeping the booking process independent of the event start time. This keeps the implementation simple and predictable.
 
-## Other Possible Approaches
+## Alternatives Considered
 
-Many production booking systems introduce a configurable booking cutoff (for example, five to fifteen minutes before the event begins). This can be incorporated as a business rule if required.
+Introduce a configurable booking cutoff (for example, five to fifteen minutes before the event starts) to prevent late reservations.
 
 ---
 
@@ -45,13 +45,13 @@ Many production booking systems introduce a configurable booking cutoff (for exa
 
 Cancelling a reservation immediately releases the seat, making it available for new reservations.
 
-## Rationale
+## Reasoning
 
-Immediate availability maximizes seat utilization and provides the best user experience by allowing other users to reserve newly available seats without unnecessary delays.
+Immediate availability improves seat utilization and allows other users to reserve the seat without unnecessary delays.
 
-## Other Possible Approaches
+## Alternatives Considered
 
-A cooldown period could be introduced to reduce abusive reservation patterns, although it would increase system complexity.
+Introduce a cooldown period before making the seat available again. This could reduce abuse but would increase implementation complexity.
 
 ---
 
@@ -59,19 +59,15 @@ A cooldown period could be introduced to reduce abusive reservation patterns, al
 
 ## Decision
 
-If a hold expires before the confirmation request is processed, the confirmation request is rejected.
+If a hold expires before the confirmation request is processed, the request is rejected.
 
-The API returns:
+The API returns **409 Conflict** with an appropriate error message.
 
-409 Conflict
+## Reasoning
 
-with an appropriate error message indicating that the hold has expired.
+Although the client originally viewed a valid hold, the reservation state changed before confirmation was completed. Returning a conflict accurately communicates that the request can no longer be completed because the resource state has changed.
 
-## Rationale
-
-Although the client originally viewed a valid reservation, the reservation state changed before confirmation was completed. Returning a conflict accurately communicates that the requested operation cannot be completed because the current state differs from the client's expectation.
-
-The client may initiate a new reservation if the seat is still available.
+If the seat is still available, the client can create a new reservation.
 
 ---
 
@@ -83,14 +79,14 @@ Concurrency is managed using database transactions together with row-level locki
 
 Implementation uses:
 
-- transaction.atomic()
-- select_for_update()
+- `transaction.atomic()`
+- `select_for_update()`
 
-## Rationale
+## Reasoning
 
-Seat reservation is a critical section where multiple users may attempt to reserve the same seat simultaneously.
+Seat reservation is a critical operation where multiple users may attempt to reserve the same seat simultaneously.
 
-Row-level locking guarantees that only one transaction can reserve a seat while competing transactions wait until the lock is released. This eliminates race conditions and prevents duplicate reservations.
+Row-level locking ensures that only one transaction can reserve a seat while competing transactions wait until the lock is released. This prevents race conditions and guarantees that duplicate reservations cannot occur.
 
 ---
 
@@ -98,21 +94,21 @@ Row-level locking guarantees that only one transaction can reserve a seat while 
 
 ## Decision
 
-The system follows a lazy expiry strategy.
+The system uses a lazy expiry strategy.
 
-Whenever a reservation is accessed for holding, confirmation, or seat availability, the hold expiry is evaluated. Expired reservations are automatically released during normal request processing.
+Whenever a reservation is accessed during seat holding, confirmation, or seat availability checks, the hold expiry is evaluated. Expired holds are automatically released during normal request processing.
 
-## Rationale
+## Reasoning
 
-Lazy expiry avoids background infrastructure while ensuring expired holds do not permanently block seats.
+This approach keeps the implementation simple while ensuring expired reservations do not permanently block seats. It also avoids introducing additional background infrastructure.
 
-## Other Possible Approaches
+## Alternatives Considered
 
 - Scheduled cleanup jobs
 - Celery workers
 - Database TTL mechanisms
 
-These approaches are more suitable for large-scale deployments.
+These approaches are more suitable for larger distributed deployments.
 
 ---
 
@@ -122,13 +118,11 @@ These approaches are more suitable for large-scale deployments.
 
 The Confirm Reservation endpoint is idempotent.
 
-Repeated confirmation requests for an already confirmed reservation return the existing reservation rather than creating duplicate bookings.
+If a reservation has already been confirmed, repeated confirmation requests return the existing reservation instead of creating duplicate bookings.
 
-## Rationale
+## Reasoning
 
-Clients commonly retry requests after network interruptions or request timeouts.
-
-Idempotent behaviour guarantees a consistent outcome regardless of how many times the confirmation request is submitted.
+Clients may retry requests after temporary network failures or timeouts. Returning the existing reservation guarantees a consistent result regardless of how many times the confirmation request is submitted.
 
 ---
 
@@ -136,19 +130,19 @@ Idempotent behaviour guarantees a consistent outcome regardless of how many time
 
 ## Decision
 
-Business failures return meaningful error responses rather than generic server errors.
+The API returns clear and meaningful responses for common business failures.
 
 Examples include:
 
-- Seat already reserved
+- Seat already held or booked
 - Hold expired
 - Reservation belongs to another user
 - Reservation already cancelled
-- Reservation not found
+- Reservation does not exist
 
-## Rationale
+## Reasoning
 
-Clear error messages improve API usability and allow client applications to respond appropriately.
+Meaningful error responses make the API easier to consume and allow client applications to handle different failure scenarios appropriately.
 
 ---
 
@@ -156,18 +150,16 @@ Clear error messages improve API usability and allow client applications to resp
 
 ## Decision
 
-A concurrent booking test is included with the project.
+A concurrency test script is included to simulate ten simultaneous reservation requests for the same seat.
 
-The test launches ten simultaneous reservation requests for the same seat.
-
-## Expected Behaviour
+## Expected Outcome
 
 - Exactly one reservation succeeds.
-- Remaining requests receive conflict responses.
+- All remaining requests receive conflict responses.
 
-## Rationale
+## Reasoning
 
-This validates that the concurrency strategy prevents duplicate reservations under simultaneous access.
+This verifies that the concurrency strategy works correctly under simultaneous access and prevents double booking.
 
 ---
 
@@ -182,9 +174,6 @@ The application follows a layered architecture consisting of:
 - Services
 - Views
 
-## Rationale
+## Reasoning
 
-Business logic is isolated within the service layer while the API layer remains responsible only for request validation and response generation.
-
-This separation improves maintainability, readability, testing, and future extensibility.
-
+Separating business logic from request handling improves readability, maintainability, and testability. The service layer contains the reservation logic, while the API layer focuses on request validation and response generation.
