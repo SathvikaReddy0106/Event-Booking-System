@@ -103,8 +103,40 @@ pip install -r requirements.txt
 
 Copy `.env.example` to `.env` and update the database configuration.
 
+---
 
-## 5. Apply Database Migrations
+## 5. Create the Database
+
+Create an empty MySQL database before running migrations.
+
+Example:
+
+```sql
+CREATE DATABASE event_booking_db;
+
+```
+
+Update the database credentials in your .env file to match your local MySQL configuration.
+---
+
+
+## 6. ## Initial Data
+
+Before testing the APIs, populate the database with a small set of sample records.
+
+The following entities are required:
+
+| Entity | Example |
+|--------|---------|
+| User | john, alice, bob |
+| Venue | Screen 1 |
+| Seats | A1, A2, A3 |
+| Showtime | Any future showtime for Screen 1 |
+
+These records are sufficient to execute all API examples and the concurrency validation scripts included in the project.
+
+---
+## 7. Apply Database Migrations
 
 ```bash
 python manage.py migrate
@@ -112,7 +144,7 @@ python manage.py migrate
 
 ---
 
-## 6. Run the Application
+## 8. Run the Application
 
 ```bash
 python manage.py runserver
