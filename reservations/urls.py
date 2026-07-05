@@ -11,19 +11,19 @@ from .views import (
 urlpatterns = [
 
     path(
-        "hold/",
+        "seat/hold/",
         HoldSeatAPIView.as_view(),
         name="hold-seat",
     ),
 
     path(
-        "confirm/",
+        "booking/confirm/",
         ConfirmReservationAPIView.as_view(),
         name="confirm",
     ),
 
     path(
-        "cancel/",
+        "booking/cancel/",
         CancelReservationAPIView.as_view(),
         name="cancel",
     ),

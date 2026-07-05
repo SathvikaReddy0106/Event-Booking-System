@@ -4,7 +4,7 @@
 
 The Event Booking System is a RESTful backend application built using Django REST Framework and MySQL. It allows users to temporarily hold seats, confirm reservations, cancel reservations, and view seat availability for a showtime.
 
-The primary objective of this project is to demonstrate safe concurrent seat reservation while preventing double booking using database transactions and row-level locking.
+The system is designed to maintain data integrity under concurrent access by preventing double booking while allowing independent seat reservations to proceed simultaneously.
 
 ---
 
@@ -14,13 +14,12 @@ The primary objective of this project is to demonstrate safe concurrent seat res
 - Django 5
 - Django REST Framework
 - MySQL
-- VS Code
 
 ---
 
 # Project Structure
 
-```
+```text
 EventBookingSystem/
 │
 ├── backend/
@@ -28,16 +27,15 @@ EventBookingSystem/
 ├── seats/
 ├── showtimes/
 ├── venues/
-├── users/
 ├── scripts/
-│   └── concurrent_booking_test.py
+│   ├── concurrent_booking_test.py
+│   └── simultaneous_booking_test.py
 │
 ├── requirements.txt
 ├── README.md
 ├── DECISIONS.md
 ├── .env.example
-├── manage.py
-└── venv/
+└── manage.py
 ```
 
 ---
@@ -48,6 +46,7 @@ EventBookingSystem/
 
 ```bash
 git clone <repository-url>
+cd EventBookingSystem
 ```
 
 ---
@@ -60,7 +59,7 @@ python -m venv venv
 
 Activate it
 
-Windows
+**Windows**
 
 ```bash
 venv\Scripts\activate
@@ -78,11 +77,11 @@ pip install -r requirements.txt
 
 ## 4. Configure Environment Variables
 
-Create a `.env` file using `.env.example`.
+Copy `.env.example` to `.env` and update the database configuration.
 
-Example
+Example:
 
-```
+```text
 DB_NAME=event_booking_db
 DB_USER=root
 DB_PASSWORD=your_password
@@ -95,7 +94,7 @@ DEBUG=True
 
 ---
 
-## 5. Apply Migrations
+## 5. Apply Database Migrations
 
 ```bash
 python manage.py migrate
@@ -103,7 +102,7 @@ python manage.py migrate
 
 ---
 
-## 6. Run the Server
+## 6. Run the Application
 
 ```bash
 python manage.py runserver
@@ -119,17 +118,17 @@ http://127.0.0.1:8000/
 
 # API Documentation
 
-## 1. Hold Seat
+## Hold Seat
 
-Creates a temporary reservation valid for **2 minutes**.
+Creates a temporary seat hold that remains valid for **2 minutes** unless it is confirmed or expires.
 
-### Endpoint
+**Endpoint**
 
 ```
-POST /api/hold/
+POST /api/seat/hold/
 ```
 
-### Request
+**Request**
 
 ```json
 {
@@ -139,9 +138,7 @@ POST /api/hold/
 }
 ```
 
-### Success Response
-
-**201 Created**
+**Success Response (201 Created)**
 
 ```json
 {
@@ -151,27 +148,19 @@ POST /api/hold/
 }
 ```
 
-### Possible Errors
-
-| Status | Reason |
-|---------|--------|
-| 409 Conflict | Seat already held or booked |
-| 409 Conflict | Hold has expired |
-| 500 Internal Server Error | Unexpected server error |
-
 ---
 
-## 2. Confirm Reservation
+## Confirm Reservation
 
-Confirms an existing held reservation.
+Confirms an active held reservation and converts it into a booked reservation.
 
-### Endpoint
+**Endpoint**
 
 ```
-POST /api/confirm/
+POST /api/booking/confirm/
 ```
 
-### Request
+**Request**
 
 ```json
 {
@@ -180,9 +169,7 @@ POST /api/confirm/
 }
 ```
 
-### Success Response
-
-**200 OK**
+**Success Response (200 OK)**
 
 ```json
 {
@@ -191,27 +178,19 @@ POST /api/confirm/
 }
 ```
 
-### Possible Errors
-
-| Status | Reason |
-|---------|--------|
-| 409 Conflict | Hold expired |
-| 409 Conflict | Reservation belongs to another user |
-| 409 Conflict | Reservation already cancelled |
-
 ---
 
-## 3. Cancel Reservation
+## Cancel Reservation
 
-Cancels an existing reservation.
+Cancels an existing reservation and immediately releases the seat for future bookings.
 
-### Endpoint
+**Endpoint**
 
 ```
-DELETE /api/cancel/
+DELETE /api/booking/cancel/
 ```
 
-### Request
+**Request**
 
 ```json
 {
@@ -220,9 +199,7 @@ DELETE /api/cancel/
 }
 ```
 
-### Success Response
-
-**200 OK**
+**Success Response (200 OK)**
 
 ```json
 {
@@ -233,125 +210,125 @@ DELETE /api/cancel/
 
 ---
 
-## 4. Seat Availability
+## Seat Availability
 
 Returns the current status of every seat for a showtime.
 
-### Endpoint
+**Endpoint**
 
 ```
 GET /api/showtimes/{showtime_id}/seats/
 ```
 
-### Success Response
-
-```json
-[
-    {
-        "seat_id": 1,
-        "row": "A",
-        "seat_number": 1,
-        "status": "AVAILABLE"
-    }
-]
-```
-
 ---
 
-## 5. Booking Summary
+## Booking Summary
 
 Returns the booking statistics for a showtime.
 
-### Endpoint
+**Endpoint**
 
 ```
 GET /api/showtimes/{showtime_id}/summary/
-```
-
-### Success Response
-
-```json
-{
-    "total_seats": 100,
-    "booked": 45,
-    "held": 10,
-    "available": 45
-}
 ```
 
 ---
 
 # Concurrency Handling
 
-The application prevents double booking by using:
+The application prevents double booking using:
 
 - `transaction.atomic()`
 - `select_for_update()`
+- Database-level unique constraint on `(seat, showtime)`
 
-When multiple users attempt to reserve the same seat simultaneously, the requested seat row is locked within a database transaction. Only one transaction can successfully create a reservation, while competing transactions receive a conflict response.
+Each reservation request executes inside a database transaction. The requested seat is locked using row-level locking (`select_for_update()`), ensuring that only one transaction can reserve a particular seat at a time.
+
+Requests for different seats proceed independently because only the requested seat row is locked, allowing high concurrency while maintaining data integrity.
 
 ---
 
 # Hold Expiry Strategy
 
-A **lazy expiry** strategy is used.
+The system uses a **lazy expiry** strategy.
 
-Every hold, confirmation, and seat listing checks whether the hold has expired. If the hold has expired, it is released automatically without requiring manual cleanup.
+Whenever a reservation is accessed during seat holding, confirmation, or seat availability checks, the hold expiry is evaluated. Expired reservations are automatically released during normal request processing without requiring manual cleanup.
 
-This approach satisfies the assignment requirements while keeping the implementation simple. In a production environment, a background scheduler such as Celery could be used for periodic cleanup.
+For larger deployments, this strategy can be replaced with a scheduled background cleanup using Celery and Redis.
 
 ---
 
 # Idempotency
 
-The Confirm Reservation API is designed to be idempotent.
+The **Confirm Reservation** endpoint is idempotent.
 
-If a client retries the same confirmation request after a timeout, the system does not create duplicate bookings. If the reservation has already been confirmed, the existing reservation is returned.
+If a client retries a confirmation request due to a timeout or network interruption, the system returns the existing confirmed reservation instead of creating a duplicate booking.
 
 ---
 
 # Error Handling
 
-The application returns meaningful responses for common failure scenarios, including:
+The API returns meaningful responses for common business failures.
 
-- Seat already held or booked
-- Hold expired
-- Reservation belongs to another user
-- Reservation already cancelled
-- Reservation does not exist
+| Scenario | Response |
+|----------|----------|
+| Seat already held or booked | 409 Conflict |
+| Hold expired | 409 Conflict |
+| Reservation belongs to another user | 409 Conflict |
+| Reservation already cancelled | 409 Conflict |
+| Reservation does not exist | 409 Conflict |
 
 ---
 
-# Concurrency Test
+# Concurrency Validation
 
-The project includes:
+Two scripts are included to validate concurrent behaviour.
 
-```
-scripts/concurrent_booking_test.py
-```
+## 1. concurrent_booking_test.py
 
-The script sends **10 concurrent hold requests** for the same seat.
+Simulates multiple users attempting to reserve the **same seat** simultaneously.
 
-Expected Result:
+Expected outcome:
 
-- Exactly **one** request succeeds.
-- Remaining requests receive a conflict response.
+- Exactly one reservation succeeds.
+- Remaining requests receive conflict responses.
 
-This demonstrates that the application correctly prevents double booking under concurrent access.
+This demonstrates that duplicate reservations cannot occur.
+
+---
+
+## 2. simultaneous_booking_test.py
+
+Simulates multiple users reserving **different seats** simultaneously.
+
+Expected outcome:
+
+- All reservation requests succeed.
+
+This demonstrates that row-level locking allows independent reservations to proceed concurrently without blocking one another.
+
+---
+
+# Testing
+
+Business logic has been verified through service-level testing, while API behaviour has been validated using Postman.
+
+Concurrency behaviour is demonstrated using the scripts available in the `scripts/` directory.
 
 ---
 
 # AI Usage
 
-ChatGPT was used to discuss the project architecture, understand Django concepts, review the implementation, and improve the project documentation.
+ChatGPT was used as a learning and documentation aid to discuss architectural approaches, clarify Django concepts, review implementation decisions, and improve project documentation.
 
+All implementation, integration, debugging, and validation were performed manually.
 
 ---
 
-# Future Improvements
+# Future Enhancements
 
 - JWT-based authentication and authorization.
 - Celery with Redis for scheduled cleanup of expired reservations.
-- Docker support for simplified deployment.
+- Docker and Docker Compose for deployment.
 - OpenAPI (Swagger) documentation.
-- Comprehensive automated testing.
+- CI/CD pipeline with automated testing.

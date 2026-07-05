@@ -1,6 +1,6 @@
 # Architecture & Design Decisions
 
-This document summarizes the key architectural and implementation decisions made during the development of the Event Booking System.
+This document outlines the key architectural and implementation decisions made during the development of the Event Booking System, along with the reasoning behind each design choice.
 
 ---
 
@@ -75,19 +75,23 @@ If the seat is still available, the client can create a new reservation.
 
 ## Decision
 
-Concurrency is managed using database transactions together with row-level locking.
+Concurrency is managed using database transactions, row-level locking, and a database-level uniqueness constraint.
 
 Implementation uses:
 
 - `transaction.atomic()`
 - `select_for_update()`
+- Unique constraint on `(seat, showtime)`
 
 ## Reasoning
 
 Seat reservation is a critical operation where multiple users may attempt to reserve the same seat simultaneously.
 
-Row-level locking ensures that only one transaction can reserve a seat while competing transactions wait until the lock is released. This prevents race conditions and guarantees that duplicate reservations cannot occur.
+Each reservation request executes within a database transaction, while `select_for_update()` acquires a row-level lock on the requested seat. This guarantees that only one transaction can successfully reserve a seat at a time.
 
+The database-level unique constraint provides an additional safeguard against duplicate reservations.
+
+Requests targeting different seats execute concurrently because only the requested seat row is locked, allowing the system to maintain both correctness and scalability.
 ---
 
 # 6. Hold Expiry Strategy
@@ -150,30 +154,47 @@ Meaningful error responses make the API easier to consume and allow client appli
 
 ## Decision
 
-A concurrency test script is included to simulate ten simultaneous reservation requests for the same seat.
+Two concurrency validation scripts are included with the project.
 
-## Expected Outcome
+### `concurrent_booking_test.py`
+
+Simulates multiple users attempting to reserve the **same seat** simultaneously.
+
+**Expected Outcome**
 
 - Exactly one reservation succeeds.
-- All remaining requests receive conflict responses.
+- Remaining requests receive conflict responses.
+
+### `simultaneous_booking_test.py`
+
+Simulates multiple users reserving **different seats** simultaneously.
+
+**Expected Outcome**
+
+- All reservation requests succeed.
 
 ## Reasoning
 
-This verifies that the concurrency strategy works correctly under simultaneous access and prevents double booking.
+These scenarios validate both aspects of the concurrency strategy.
 
+The first demonstrates that duplicate reservations for the same seat are prevented under concurrent access.
+
+The second demonstrates that independent reservations for different seats proceed concurrently without unnecessary blocking, confirming that row-level locking is being used effectively.
 ---
 
 # 10. Application Architecture
 
 ## Decision
 
-The application follows a layered architecture consisting of:
-
-- Models
-- Serializers
-- Services
-- Views
+The application follows a layered architecture consisting of Models, Serializers, Services, and Views.
 
 ## Reasoning
 
-Separating business logic from request handling improves readability, maintainability, and testability. The service layer contains the reservation logic, while the API layer focuses on request validation and response generation.
+Each layer has a clearly defined responsibility.
+
+- **Models** represent the database entities and relationships.
+- **Serializers** validate incoming request data.
+- **Services** contain the business logic and reservation workflow.
+- **Views** handle HTTP requests and responses.
+
+Separating business logic from request handling improves readability, maintainability, testability, and future extensibility.
