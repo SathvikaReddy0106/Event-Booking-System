@@ -66,11 +66,12 @@ Venue (1) ---- (*) Showtime
 
 # Installation
 
-## 1. Clone the repository
+## 1. Extract the Project
 
-```bash
-git clone <repository-url>
-cd EventBookingSystem
+Extract the provided ZIP file to a local directory and navigate to the project folder.
+
+```text
+EventBookingSystem/
 ```
 
 ---
