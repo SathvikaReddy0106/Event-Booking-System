@@ -80,20 +80,6 @@ pip install -r requirements.txt
 
 Create a `.env` file using `.env.example`.
 
-Example
-
-```
-DB_NAME=event_booking_db
-DB_USER=root
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=3306
-
-SECRET_KEY=your_secret_key
-DEBUG=True
-```
-
----
 
 ## 5. Apply Migrations
 
