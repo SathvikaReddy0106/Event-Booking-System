@@ -329,9 +329,9 @@ Concurrency behaviour is demonstrated using the scripts available in the `script
 
 # AI Usage
 
-ChatGPT was used as a learning and documentation aid to discuss architectural approaches, clarify Django concepts, review implementation decisions, and improve project documentation.
+ChatGPT was used during development as a learning and documentation aid. It was primarily used to discuss architectural approaches, clarify Django and Django REST Framework concepts, review design decisions, and improve the clarity of the project documentation.
 
-All implementation, integration, debugging, and validation were performed manually.
+Suggestions related to code structure, concurrency handling, and documentation were reviewed before adoption. All implementation decisions, code integration, debugging, testing, and validation were performed manually. 
 
 ---
 
