@@ -4,8 +4,6 @@
 
 The Event Booking System is a RESTful backend application built using Django REST Framework and MySQL. It allows users to temporarily hold seats, confirm reservations, cancel reservations, and view seat availability for a showtime.
 
-The system is designed to maintain data integrity under concurrent access by preventing double booking while allowing independent seat reservations to proceed simultaneously.
-
 ---
 
 # Technology Stack
