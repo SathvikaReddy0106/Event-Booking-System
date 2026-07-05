@@ -83,11 +83,13 @@ Implementation uses:
 - `select_for_update()`
 - Unique constraint on `(seat, showtime)`
 
+
 ## Reasoning
 
 Seat reservation is a critical operation where multiple users may attempt to reserve the same seat simultaneously.
 
 Each reservation request executes within a database transaction, while `select_for_update()` acquires a row-level lock on the requested seat. This guarantees that only one transaction can successfully reserve a seat at a time.
+
 
 The database-level unique constraint provides an additional safeguard against duplicate reservations.
 
@@ -162,12 +164,15 @@ Simulates multiple users attempting to reserve the **same seat** simultaneously.
 
 **Expected Outcome**
 
+
 - Exactly one reservation succeeds.
-- Remaining requests receive conflict responses.
+- All remaining requests receive conflict responses.
+
 
 ### `simultaneous_booking_test.py`
 
 Simulates multiple users reserving **different seats** simultaneously.
+
 
 **Expected Outcome**
 

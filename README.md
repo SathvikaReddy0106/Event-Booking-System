@@ -79,20 +79,6 @@ pip install -r requirements.txt
 
 Copy `.env.example` to `.env` and update the database configuration.
 
-Example:
-
-```text
-DB_NAME=event_booking_db
-DB_USER=root
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=3306
-
-SECRET_KEY=your_secret_key
-DEBUG=True
-```
-
----
 
 ## 5. Apply Database Migrations
 
@@ -331,4 +317,3 @@ All implementation, integration, debugging, and validation were performed manual
 - Celery with Redis for scheduled cleanup of expired reservations.
 - Docker and Docker Compose for deployment.
 - OpenAPI (Swagger) documentation.
-- CI/CD pipeline with automated testing.
