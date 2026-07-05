@@ -3,9 +3,6 @@ from venues.models import Venue
 
 
 class Seat(models.Model):
-    """
-    Represents a seat inside a venue.
-    """
 
     venue = models.ForeignKey(
         Venue,

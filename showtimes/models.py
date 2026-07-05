@@ -3,10 +3,7 @@ from venues.models import Venue
 
 
 class Showtime(models.Model):
-    """
-    Represents a movie show scheduled at a venue.
-    """
-
+   
     venue = models.ForeignKey(
         Venue,
         on_delete=models.CASCADE,

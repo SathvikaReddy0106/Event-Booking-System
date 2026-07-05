@@ -2,9 +2,6 @@ from django.db import models
 
 
 class Venue(models.Model):
-    """
-    Represents a physical theatre/screen.
-    """
 
     name = models.CharField(
         max_length=100,
