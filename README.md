@@ -40,6 +40,30 @@ EventBookingSystem/
 
 ---
 
+# Database Design
+
+The application uses a relational database with the following primary entities:
+
+- **Venue** – Represents an event venue.
+- **Seat** – Represents a seat within a venue.
+- **Showtime** – Represents an event scheduled at a venue.
+- **Reservation** – Stores seat holds and confirmed bookings.
+- **User** – Managed using Django's built-in authentication system.
+
+### Relationships
+
+User (1) ------ (*) Reservation
+
+Showtime (1) -- (*) Reservation
+
+Seat (1) ------ (*) Reservation
+
+Venue (1) ---- (*) Seat
+
+Venue (1) ---- (*) Showtime
+
+---
+
 # Installation
 
 ## 1. Clone the repository
